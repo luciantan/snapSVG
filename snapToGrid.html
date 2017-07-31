@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css">
+     
+* {
+  box-sizing: border-box;
+}
+
+#svg {
+  background-color: white;
+  border: 1px solid gray;
+  width: 800px;
+  height: 800px;
+}
+    </style>
+  </head>
+  <body>
+  <div class="svgContainer">
+    <svg id="svg" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+    
+
+    <script type="text/javascript" src="snap.svg.js"></script>
+    <script>
+        var s = Snap("#svg");
+        Snap.plugin(function(Snap, Element, Paper, global, Fragment) {
+          Element.prototype.checkUnder = function(query, overCallback, afterCallback) {
+            var that = this;
+            var gABox = this.getBBox();
+            var isOver = 0;
+            var snapElUnder = false;
+            var others = Snap.selectAll(query);
+            others.forEach(function(box) { // Snap.selectAll returns a set
+              var gBBox = box.getBBox();
+              if (gABox && gBBox && Snap.path.isBBoxIntersect(gABox, gBBox) && box.id != that.id) { // box.id!=that.id added so it won't look for self.
+                snapElUnder = Snap(box);
+                isOver = 1;
+              }
+            });
+
+            if (isOver && snapElUnder) {
+              if (typeof this.data('isOver') === 'undefined') {
+                if (typeof overCallback != "undefined") {
+                  overCallback.call(this, snapElUnder);
+                  this.data('isOver', snapElUnder);
+                  // also let's add the event handler disabled in original code so we can listen
+                  eve("snap.drag.over." + this.id, this, snapElUnder);
+                }
+              }
+            } else {
+              if (typeof this.data('isOver') !== 'undefined') {
+                if (typeof overCallback != "undefined" && typeof afterCallback != "undefined") {
+                  afterCallback.call(this, this.data('isOver'));
+                  this.removeData('isOver');
+                  // and is out listener
+                  eve("snap.drag.out." + this.id, this, snapElUnder);
+                }
+              }
+            }
+          }
+        });
+        var rc = s.circle(50, 50, 25).attr({
+          fill: 'red'
+        });
+        var gr = s.rect(75, 75, 80, 80).attr({
+          fill: 'blue',
+          transform: ''
+        }).addClass('dragover');
+        var gr2 = s.rect(120, 120, 90, 90).attr({
+          fill: 'green',
+          transform: 't100,100r45'
+        }).addClass('dragover');
+
+        
+
+
+        rc.drag(function(dx, dy, x, y, e) { // move function
+              
+          this.checkUnder(".dragover", function(o) { // over an object
+            this.attr({opacity: .5    });
+            console.log("You just hit ", o)
+          }, function(o) { // out of object
+            this.attr({ opacity: 1 });
+            console.log("You just left ", o);
+          });
+          var snapInvMatrix = this.transform().diffMatrix.invert();
+              snapInvMatrix.e = snapInvMatrix.f = 0;
+              tdx = snapInvMatrix.x( dx,dy ); tdy = snapInvMatrix.y( dx,dy );
+              this.transform( "t" + [ tdx, tdy ] + this.data('ot') );
+        }, function() { // start function
+          this.data('ot', this.transform().local );
+          this.data("next_sibling" , this.node.nextElementSibling);
+          this.paper.append( this ); // small hack to bring element front
+        }, function() { // end function
+          if (typeof this.data("isOver") != "undefined") { // we are over something revert back to initial position
+            this.transform( this.data('ot')  );
+          }
+          this.attr({ opacity: 1  });
+          Snap(this.data("next_sibling")).before(this); // Put it back in same hierarchy 
+        });
+
+
+        var box = s.path("M 70 70 h 30 v 10 h 10 v -10 h 10 v 20 h -10 v 10 h -10 v -10 h -30 v -20").addClass('dragover');
+        box.drag(function(dx, dy, x, y, e) { // move function
+              
+          this.checkUnder(".dragover", function(o) { // over an object
+            this.attr({opacity: .5    });
+            console.log("You just hit ", o)
+          }, function(o) { // out of object
+            this.attr({ opacity: 1 });
+            console.log("You just left ", o);
+          });
+          var snapInvMatrix = this.transform().diffMatrix.invert();
+              snapInvMatrix.e = snapInvMatrix.f = 0;
+              tdx = snapInvMatrix.x( dx,dy ); tdy = snapInvMatrix.y( dx,dy );
+              this.transform( "t" + [ tdx, tdy ] + this.data('ot') );
+        }, function() { // start function
+          this.data('ot', this.transform().local );
+          this.data("next_sibling" , this.node.nextElementSibling);
+          this.paper.append( this ); // small hack to bring element front
+        }, function() { // end function
+          // if (typeof this.data("isOver") != "undefined") { // we are over something revert back to initial position
+          //   this.transform( this.data('ot')  );
+          // }
+          // this.attr({ opacity: 1  });
+          // Snap(this.data("next_sibling")).before(this); // Put it back in same hierarchy 
+          var that = this;
+          var gABox = this.getBBox();
+          var others = Snap.selectAll(".dragover");
+          others.forEach(function(box){
+            var gBBox = box.getBBox();
+              if (gABox && gBBox && Snap.path.isBBoxIntersect(gABox, gBBox) && box.id != that.id) { // box.id!=that.id added so it won't look for self.
+                var transX =  gBBox.cx;// - this.getBBox().x ;
+                var transY =  gBBox.cy;// - this.getBBox().y;
+                that.transform("t" + [transX, transY]);
+                console.log("gBBox: " + gBBox.x + ", " + gBBox.y);
+                console.log("gABox: " + gABox.x + ", " + gABox.y);
+              }
+          });
+          this.attr({ opacity: 1  });
+
+        });
+        // var box2 = s.path("M 70 70 h 30 v 10 h 10 v -10 h 10 v 20 h -10 v 10 h -10 v -10 h -30 v -20").addClass('dragover');
+        // box2.drag(function(dx, dy, x, y, e) { // move function
+              
+        //   this.checkUnder(".dragover", function(o) { // over an object
+        //     this.attr({opacity: .5    });
+        //     console.log("You just hit ", o)
+        //   }, function(o) { // out of object
+        //     this.attr({ opacity: 1 });
+        //     console.log("You just left ", o);
+        //   });
+        //   var snapInvMatrix = this.transform().diffMatrix.invert();
+        //       snapInvMatrix.e = snapInvMatrix.f = 0;
+        //       tdx = snapInvMatrix.x( dx,dy ); tdy = snapInvMatrix.y( dx,dy );
+        //       this.transform( "t" + [ tdx, tdy ] + this.data('ot') );
+        // }, function() { // start function
+        //   this.data('ot', this.transform().local );
+        //   this.data("next_sibling" , this.node.nextElementSibling);
+        //   this.paper.append( this ); // small hack to bring element front
+        // }, function() { // end function
+        //   // if (typeof this.data("isOver") != "undefined") { // we are over something revert back to initial position
+        //   //   this.transform( this.data('ot')  );
+        //   // }
+        //   // this.attr({ opacity: 1  });
+        //   // Snap(this.data("next_sibling")).before(this); // Put it back in same hierarchy 
+        //   var that = this;
+        //   var gABox = this.getBBox();
+        //   var others = Snap.selectAll(".dragover");
+        //   others.forEach(function(box){
+        //     var gBBox = box.getBBox();
+        //       if (gABox && gBBox && Snap.path.isBBoxIntersect(gABox, gBBox) && box.id != that.id) { // box.id!=that.id added so it won't look for self.
+        //         that.transform("t" + [gBBox.x,gBBox.y]);
+        //       }
+        //   });
+        //   this.attr({ opacity: 1  });
+
+        // });
+
+
+        gr.drag();
+
+        gr2.drag(function(dx, dy, x, y, e) { // move function
+              
+          this.checkUnder(".dragover", function(o) { // over an object
+            this.attr({opacity: .5    });
+            console.log("You just hit ", o)
+          }, function(o) { // out of object
+            this.attr({ opacity: 1 });
+            console.log("You just left ", o);
+          });
+          var snapInvMatrix = this.transform().diffMatrix.invert();
+              snapInvMatrix.e = snapInvMatrix.f = 0;
+              tdx = snapInvMatrix.x( dx,dy ); tdy = snapInvMatrix.y( dx,dy );
+              this.transform( "t" + [ tdx, tdy ] + this.data('ot') );
+        }, function() { // start function
+          this.data('ot', this.transform().local );
+          this.data("next_sibling" , this.node.nextElementSibling);
+          this.paper.append( this ); // small hack to bring element front
+        }, function() { // end function
+          // if (typeof this.data("isOver") != "undefined") { // we are over something revert back to initial position
+          //   this.transform( this.data('ot')  );
+          // }
+          // this.attr({ opacity: 1  });
+          // Snap(this.data("next_sibling")).before(this); // Put it back in same hierarchy 
+          var that = this;
+          var gABox = this.getBBox();
+          var others = Snap.selectAll(".dragover");
+          others.forEach(function(box){
+            var gBBox = box.getBBox();
+              if (gABox && gBBox && Snap.path.isBBoxIntersect(gABox, gBBox) && box.id != that.id) { // box.id!=that.id added so it won't look for self.
+                var transX =  gBBox.cx - gABox.cx ;
+                var transY =  gBBox.cy - gABox.cy;
+                that.transform("T" + [transX, transY ]);
+                console.log("gBBox: " + gBBox.x + ", " + gBBox.y);
+                console.log("gABox: " + gABox.x + ", " + gABox.y);
+              }
+          });
+          this.attr({ opacity: 1  });
+
+        });
+
+
+    </script>
+  </body>
+</html>
